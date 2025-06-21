@@ -4,7 +4,7 @@ st.set_page_config(page_title="TEXT ANGEL Unified", layout="centered")
 import json
 import re
 import os
-import openai
+from openai import OpenAI
 from log_scroll_and_badge_engine import log_to_scroll
 from profile_system import (
     load_user_profile,
@@ -14,7 +14,7 @@ from profile_system import (
 )
 
 # --- CONFIG ---
-openai.api_key = os.environ.get("OPENAI_API_KEY")
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 # Load user profile
 user_profile = load_user_profile()
@@ -59,7 +59,8 @@ def rewrite_with_tone(message, tone):
     fallback = "Rewrite this message with empathy"
     prompt_text = prompt_map.get(tone, fallback)
     prompt = f"{prompt_text}\n\nOriginal: {message}"
-    response = openai.ChatCompletion.create(
+
+    response = client.chat.completions.create(
         model="gpt-4",
         messages=[
             {"role": "system", "content": "You are a message tone transformer."},
