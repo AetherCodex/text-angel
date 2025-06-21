@@ -1,10 +1,9 @@
 import streamlit as st
-st.set_page_config(page_title="TEXT ANGEL Unified", layout="centered")
-
 import json
 import re
 import os
-from openai import OpenAI
+import openai
+
 from log_scroll_and_badge_engine import log_to_scroll
 from profile_system import (
     load_user_profile,
@@ -14,16 +13,17 @@ from profile_system import (
 )
 
 # --- CONFIG ---
-client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+st.set_page_config(page_title="TEXT ANGEL Unified", layout="centered")
+openai.api_key = st.secrets["OPENAI_API_KEY"]  # ✅ Loads API key from .streamlit/secrets.toml
 
-# Load user profile
+# --- Load Profile ---
 user_profile = load_user_profile()
 username = user_profile["username"]
 guardian = user_profile["guardian_name"]
 avatar = user_profile["avatar"]
 tone_default = get_tone_default()
 
-# Display user profile at top
+# --- Sidebar Profile UI ---
 st.sidebar.header(f"{avatar} Welcome, {username}!")
 st.sidebar.markdown(f"**Guardian Angel:** {guardian}")
 selected_default = st.sidebar.selectbox(
@@ -33,12 +33,12 @@ selected_default = st.sidebar.selectbox(
     key="tone_selector"
 )
 
-# Load shield words
+# --- Load Shield Words ---
 shield_path = "shield_filter_words.json"
 with open(shield_path, "r") as f:
     shield_words = json.load(f)
 
-# --- Helper: Censor Function ---
+# --- Helper: Shield/Censor ---
 def censor_message(message, shield_list):
     blocked_count = 0
     censored_message = message
@@ -49,31 +49,31 @@ def censor_message(message, shield_list):
             censored_message = word_pattern.sub("▆▆▆", censored_message)
     return censored_message, blocked_count
 
-# --- Helper: GPT Rewrite ---
+# --- Helper: Rewrite with Tone via GPT ---
 def rewrite_with_tone(message, tone):
     prompt_map = {
         "GRACE": "Rewrite this to be kind, nurturing, and soft:",
         "TRUTH": "Rewrite this to be honest and respectful:",
         "CALM": "Rewrite this to be peaceful, grounded, and emotionally safe:"
     }
-    fallback = "Rewrite this message with empathy"
-    prompt_text = prompt_map.get(tone, fallback)
-    prompt = f"{prompt_text}\n\nOriginal: {message}"
+    prompt_text = prompt_map.get(tone, "Rewrite this message with empathy.")
+    full_prompt = f"{prompt_text}\n\nOriginal: {message}"
 
-    response = client.chat.completions.create(
+    response = openai.ChatCompletion.create(
         model="gpt-4",
         messages=[
             {"role": "system", "content": "You are a message tone transformer."},
-            {"role": "user", "content": prompt}
+            {"role": "user", "content": full_prompt}
         ],
         temperature=0.7
     )
     return response.choices[0].message.content.strip()
 
-# === Streamlit App ===
+# === STREAMLIT MAIN INTERFACE ===
+
 st.title("😇 TEXT ANGEL – Unified Guardian Mode")
 
-# === Outgoing Message Rewrite ===
+# --- Outgoing Rewrite ---
 st.header("📝 Rewrite a Message")
 tone = st.selectbox("Choose a tone:", ["GRACE", "TRUTH", "CALM"], index=["GRACE", "TRUTH", "CALM"].index(tone_default))
 user_message = st.text_area("What do you want to say?", key="rewrite")
@@ -86,7 +86,7 @@ if user_message:
 
 st.divider()
 
-# === Incoming Message Shield ===
+# --- Incoming Message Shield ---
 st.header("🛡️ Shield an Incoming Message")
 incoming_message = st.text_area("📥 Paste the message you received:", height=200, key="incoming")
 
