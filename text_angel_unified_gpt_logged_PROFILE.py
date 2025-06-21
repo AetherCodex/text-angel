@@ -1,11 +1,10 @@
-
 import streamlit as st
 st.set_page_config(page_title="TEXT ANGEL Unified", layout="centered")
 
 import json
 import re
 from pathlib import Path
-import openai
+from openai import OpenAI
 import os
 from log_scroll_and_badge_engine import log_to_scroll
 from profile_system import (
@@ -16,7 +15,7 @@ from profile_system import (
 )
 
 # --- CONFIG ---
-openai.api_key = "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"
+client = OpenAI(api_key="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")
 
 # Load user profile
 user_profile = load_user_profile()
@@ -61,7 +60,7 @@ def rewrite_with_tone(message, tone):
     fallback = "Rewrite this message with empathy"
     prompt_text = prompt_map.get(tone, fallback)
     prompt = f"{prompt_text}\n\nOriginal: {message}"
-    response = openai.ChatCompletion.create(
+    response = client.chat.completions.create(
         model="gpt-4",
         messages=[
             {"role": "system", "content": "You are a message tone transformer."},
